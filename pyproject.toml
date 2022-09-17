@@ -1,0 +1,19 @@
+[project]
+name = "nstesia"
+version = "0.1"
+description = "Python Package for Neural Style Transfer"
+readme = "README.md"
+authors = [ {name = "Malte Dehling", email = "mdehling@gmail.com"} ]
+license = {file = "LICENSE"}
+requires-python = ">=3.7"
+dependencies = [
+    "tensorflow >= 2.8.2",
+    "tensorflow-addons",
+    "matplotlib",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
