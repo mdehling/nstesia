@@ -486,7 +486,11 @@ class StyleTransferModel(tf.keras.Model):
         return { 'total_loss': total_loss }
 
     def get_config(self):
-        config = super().get_config()
+        try:
+            config = super().get_config()
+        except NotImplementedError:
+            config = {}
+
         config.update({
             'style_image': self.style_image.numpy(),
             'normalization': self.normalization,
