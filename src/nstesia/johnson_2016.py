@@ -5,21 +5,22 @@ from . import gatys_2015
 
 
 class ReflectionPadding2D(tf.keras.layers.Layer):
-    """
-    Reflection Padding 2D.
 
-    Args:
-        padding:
-            An integer of a tuple/list of 2 integers.  Indicates vertical and
-            horizontal padding.
-
-    Call args:
-        A 4-D tensor of shape [B,H,W,C].
-
-    Returns:
-        A 4-D tensor.
-    """
     def __init__(self, padding=(1,1), **kwargs):
+        """
+        Reflection Padding 2D.
+
+        Args:
+            padding:
+                An integer or a tuple/list of 2 integers.  Indicates vertical
+                and horizontal padding.
+
+        Call args:
+            A 4-D tensor of shape [B,H,W,C].
+
+        Returns:
+            A 4-D tensor.
+        """
         super().__init__(**kwargs)
 
         self.padding = padding
