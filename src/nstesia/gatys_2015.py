@@ -140,12 +140,7 @@ def avg_gram_tensor(feature):
     Returns:
         A 3-D tensor of shape `[B,C,C]` representing the averaged Gram tensor.
     """
-    #feature = tf.expand_dims(feature, axis=-1)                  # (B,H,W,C,1)
-    #gram_tensor = tf.matmul(feature, feature, transpose_b=True) # (B,H,W,C,C)
-    #return tf.reduce_mean(gram_tensor, axis=[1,2])              # (B,C,C)
-
-    H = feature.shape[1]
-    W = feature.shape[2]
+    B,H,W,C = tf.unstack(tf.shape(feature))
 
     gram_tensor = tf.linalg.einsum('bijr,bijs->brs', feature, feature)
     return gram_tensor / tf.cast(H*W, tf.float32)
