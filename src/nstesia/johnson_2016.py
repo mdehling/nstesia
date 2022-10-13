@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
 
-from . import gatys_2015
+from .gatys_2015 import ContentLoss, StyleLoss
 
 
 class ReflectionPadding2D(tf.keras.layers.Layer):
@@ -439,10 +439,10 @@ class StyleTransferModel(tf.keras.Model):
         self.postprocess = PostProcessing(name='postprocess')
 
         # Create loss functions.
-        self.content_loss_fn = gatys_2015.ContentLoss(
+        self.content_loss_fn = ContentLoss(
             feature_model='vgg16', feature_layers='johnson2016-content'
         )
-        self.style_loss_fn = gatys_2015.StyleLoss(
+        self.style_loss_fn = StyleLoss(
             style_image=self.style_image,
             feature_model='vgg16', feature_layers='johnson2016-style'
         )
@@ -471,10 +471,10 @@ class StyleTransferModel(tf.keras.Model):
 
             total_loss = (
                 self.content_weight * self.content_loss_fn(
-                    content_image, self.style_image, pastiche_image
+                    content_image, pastiche_image
                 ) +
                 self.style_weight * self.style_loss_fn(
-                    content_image, self.style_image, pastiche_image
+                    self.style_image, pastiche_image
                 ) +
                 self.var_weight * tf.image.total_variation(
                     pastiche_image

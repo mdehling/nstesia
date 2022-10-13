@@ -109,9 +109,7 @@ class ContentLoss:
         self.feature_model = feature_model
         self.targets = targets
 
-    def __call__(self, content_image, style_image, pastiche_image):
-        del style_image
-
+    def __call__(self, content_image, pastiche_image):
         targets = (
             self.targets or self.feature_model(content_image)
         )
@@ -172,9 +170,7 @@ class StyleLoss:
         self.feature_model = feature_model
         self.targets = targets
 
-    def __call__(self, content_image, style_image, pastiche_image):
-        del content_image
-
+    def __call__(self, style_image, pastiche_image):
         targets = self.targets or tuple(
             avg_gram_tensor(target)
             for target in self.feature_model(style_image)
@@ -263,10 +259,10 @@ class PasticheGenerator:
         with tf.GradientTape() as tape:
             total_loss = (
                 self.content_weight * self.content_loss_fn(
-                    self.content_image, self.style_image, self.pastiche_image
+                    self.content_image, self.pastiche_image
                 ) +
                 self.style_weight * self.style_loss_fn(
-                    self.content_image, self.style_image, self.pastiche_image
+                    self.style_image, self.pastiche_image
                 ) +
                 self.var_weight * tf.image.total_variation(
                     self.pastiche_image

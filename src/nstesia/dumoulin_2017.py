@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from . import gatys_2015
-from . import johnson_2016
+from .gatys_2015 import ContentLoss, FeatureModel, avg_gram_tensor
+from .johnson_2016 import PreProcessing
 
 
 class ReflectionPadding2D(tf.keras.layers.Layer):
@@ -19,8 +19,13 @@ class ReflectionPadding2D(tf.keras.layers.Layer):
             strides:
                 An integer.
 
-        Input shape:
+        Call args:
             A tensor of shape `[B,H,W,C]`.
+
+        Returns:
+            The padded tensor of shape `[B,H',W',C]`.  When `strides = 1`, the
+            output is of the same dimensions as the input, e.g., `H' = H` and
+            `W' = W`.
         """
         super().__init__(**kwargs)
 
@@ -155,7 +160,8 @@ class DownSamplingBlock(tf.keras.layers.Layer):
                 `'relu'` or `'sigmoid'`.
 
         Call args:
-            A tensor of rank 4.
+            A 2-tuple (x,v) of a feature tensor x of shape `[B,H,W,C]` the
+            style vector v of shape `[B,N]`.
 
         Returns:
             A tensor of rank 4.
@@ -238,7 +244,8 @@ class UpSamplingBlock(tf.keras.layers.Layer):
                 `'relu'` or `'sigmoid'`.
 
         Call args:
-            A tensor of rank 4.
+            A 2-tuple (x,v) of a feature tensor x of shape `[B,H,W,C]` the
+            style vector v of shape `[B,N]`.
 
         Returns:
             A tensor of rank 4.
@@ -312,7 +319,7 @@ class ResidualBlock(tf.keras.layers.Layer):
         rpad2   ReflectionPadding
         conv2   Convolution (filters=128, size 3x3, stride 1)
         norm2   ConditionalInstanceNormalization
-        + res   Residual
+        +       Residual
         ```
 
         Args:
@@ -320,7 +327,8 @@ class ResidualBlock(tf.keras.layers.Layer):
                 An integer.  The number of filters of the convolution.
 
         Call args:
-            A tensor of rank 4.
+            A 2-tuple (x,v) of a feature tensor x of shape `[B,H,W,C]` the
+            style vector v of shape `[B,N]`.
 
         Returns:
             A tensor of rank 4.
@@ -375,15 +383,12 @@ class MultiStyleLoss:
         """
 
         if isinstance(feature_model, str):
-            feature_model = gatys_2015.FeatureModel(
-                feature_model, feature_layers,
-            )
+            feature_model = FeatureModel(feature_model, feature_layers)
 
         targets = []
         for features in zip(*tuple(feature_model(image) for image in style_images)):
             gram_features = tuple(
-                gatys_2015.avg_gram_tensor(feature)
-                for feature in features
+                avg_gram_tensor(feature) for feature in features
             )
             targets.append(gram_features)
         targets = tuple( tf.concat(target, 0) for target in targets )
@@ -397,7 +402,7 @@ class MultiStyleLoss:
             tf.gather(target, style_index) for target in self.targets
         )
         features = tuple(
-            gatys_2015.avg_gram_tensor(feature)
+            avg_gram_tensor(feature)
             for feature in self.feature_model(pastiche_image)
         )
 
@@ -436,34 +441,44 @@ class StyleTransferModel(tf.keras.Model):
 
         preprocess              Pre-Processing                     256x256x3
 
-        down_block_1 / conv     Convolution (32, 9x9, stride 1)
+        down_block_1 / rpad     ReflectionPadding
+                     / conv     Convolution (32, 9x9, stride 1)
                      / norm     ConditionalInstanceNormalization
                      / act      Activation (ReLU)                  256x256x32
 
-        down_block_2 / conv     Convolution (64, 3x3, stride 2)
+        down_block_2 / rpad     ReflectoinPadding
+                     / conv     Convolution (64, 3x3, stride 2)
                      / norm     ConditionalInstanceNormalization
                      / act      Activation (ReLU)                  128x128x64
 
-        down_block_3 / conv     Convolution (128, 3x3, stride 2)
+        down_block_3 / rpad     ReflectionPadding
+                     / conv     Convolution (128, 3x3, stride 2)
                      / norm     ConditionalInstanceNormalization
                      / act      Activation (ReLU)                  64x64x128
 
-        res_block_1..5 / conv1  Convolution (128, 3x3, stride 1)
+        res_block_1..5 / rpad1  ReflectionPadding
+                       / conv1  Convolution (128, 3x3, stride 1)
                        / norm1  ConditionalInstanceNormalization
                        / relu1  Activation (ReLU)
+                       / rpad2  ReflectionPadding
                        / conv2  Convolution (128, 3x3, stride 1)
                        / norm2  ConditionalInstanceNormalization
-                       + crop   Residual = Cropping (2x2)          64x64x128
+                       +        Residual                           64x64x128
 
-        up_block_1 / conv       Convolution (64, 3x3, stride 1/2)
+        up_block_1 / up         UpSampling (2x)
+                   / rpad       ReflectionPadding
+                   / conv       Convolution (64, 3x3, stride 1)
                    / norm       ConditionalInstanceNormalization
                    / act        Activation (ReLU)                  128x128x64
 
-        up_block_2 / conv       Convolution (32, 3x3, stride 1/2)
+        up_block_2 / up         UpSampling (2x)
+                   / rpad       ReflectionPadding
+                   / conv       Convolution (32, 3x3, stride 1)
                    / norm       ConditionalInstanceNormalization
                    / act        Activation (ReLU)                  256x256x32
 
-        up_block_3 / conv       Convolution (3, 9x9, stride 1)
+        up_block_3 / rpad       ReflectionPadding
+                   / conv       Convolution (3, 9x9, stride 1)
                    / norm       ConditionalInstanceNormalization
                    / act        Activation (Sigmoid)               256x256x3
 
@@ -476,9 +491,9 @@ class StyleTransferModel(tf.keras.Model):
             * All convolutions use 'same' amount of reflection padding.
 
         Args:
-            style_image:
-                A 4-D image tensor of shape `[1,H,W,3]` representing the style
-                image.
+            style_images:
+                A list of 4-D image tensors of shape `[1,H,W,3]` representing
+                the style images.
             filters:
                 A tuple/list of 3 integers.  These indicate the number of
                 filters to use in the convolutional and residual blocks.  The
@@ -489,7 +504,7 @@ class StyleTransferModel(tf.keras.Model):
                 A float32 value.  The weight of the style loss.
 
         Call args:
-            A content image.
+            A tuple (x,v) consisting of a content image and a style vector.
 
         Returns:
             The stylized (pastiche) image.
@@ -508,7 +523,7 @@ class StyleTransferModel(tf.keras.Model):
         # Create model layers.
         f1, f2, f3 = filters
 
-        self.prep = johnson_2016.PreProcessing(name='preprocess')
+        self.prep = PreProcessing(name='preprocess')
     
         self.down_block_1 = DownSamplingBlock(f1, 9, 1, name='down_block_1')
         self.down_block_2 = DownSamplingBlock(f2, 3, 2, name='down_block_2')
@@ -534,7 +549,7 @@ class StyleTransferModel(tf.keras.Model):
         # their implementation of vgg16 uses average pooling instead of the
         # default max pooling.  The keras implementation I use doesn't
         # support this, so I should replace it with my own eventually.
-        self.content_loss_fn = gatys_2015.ContentLoss(
+        self.content_loss_fn = ContentLoss(
             feature_model='vgg16', feature_layers='johnson2016-content'
         )
         self.style_loss_fn = MultiStyleLoss(
@@ -571,7 +586,7 @@ class StyleTransferModel(tf.keras.Model):
 
             total_loss = (
                 self.content_weight * self.content_loss_fn(
-                    content_image, None, pastiche_image
+                    content_image, pastiche_image
                 ) +
                 self.style_weight * self.style_loss_fn(
                     pastiche_image, style_index
