@@ -352,6 +352,10 @@ class StyleTransferModel(tf.keras.Model):
         return config
 
     @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    @classmethod
     def from_saved(cls, filepath):
         return tf.keras.models.load_model(
             filepath,
