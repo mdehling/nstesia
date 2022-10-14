@@ -117,7 +117,6 @@ class StylePredictionModel(tf.keras.Model):
         base_model = tf.keras.applications.inception_v3.InceptionV3(
             include_top=False, weights='imagenet',
         )
-        base_model.trainable = False
 
         self.prep = tf.keras.applications.inception_v3.preprocess_input
         self.style_model = tf.keras.models.Model(
@@ -131,9 +130,9 @@ class StylePredictionModel(tf.keras.Model):
             bottleneck_dim, [1,1], use_bias=False, name='bneck',
         )
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs, training=False):
         x = self.prep(inputs)                               # [B,H,W,3]
-        x = self.style_model(x)                             # [B,14,14,768]
+        x = self.style_model(x, training=training)          # [B,14,14,768]
         x = self.avg(x)                                     # [B,1,1,768]
         x = self.bneck(x)                                   # [B,1,1,N]
         return tf.squeeze(x, axis=[1,2])                    # [B,N]
@@ -263,7 +262,7 @@ class StyleTransferModel(tf.keras.Model):
 
         # Create style prediction network.
         self.style_predict = StylePredictionModel(
-            bottleneck_dim=bottleneck_dim, name='style_predict'
+            bottleneck_dim=bottleneck_dim, name='style_predict',
         )
 
         # Create style transfer model layers.
@@ -300,7 +299,7 @@ class StyleTransferModel(tf.keras.Model):
     def call(self, inputs, training=False, **kwargs):
         x_c, x_s = inputs
 
-        v = self.style_predict(x_s)
+        v = self.style_predict(x_s, training=training)
 
         y = self.prep(x_c)
 
