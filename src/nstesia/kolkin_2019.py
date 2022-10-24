@@ -297,7 +297,8 @@ def compute_gradients(pastiche_pyramid, loss_fn):
     with tf.GradientTape() as tape:
         pastiche_image = fold_laplace_pyramid(pastiche_pyramid)
         loss = loss_fn(pastiche_image)
-    return loss, tape.gradient(loss, pastiche_pyramid)
+    gradients = tape.gradient(loss, pastiche_pyramid)
+    return loss, [ tf.clip_by_norm(g, 1e-4) for g in gradients ]
 
 
 def generate_step_pastiche_image(
