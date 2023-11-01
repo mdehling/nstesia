@@ -318,7 +318,12 @@ def generate_step_pastiche_image(
         sample_grid=sample_grid,
         feature_norm=feature_norm,
     )
-    optimizer = tf.keras.optimizers.RMSprop(learning_rate)
+
+    # As of v2.11, TF uses a new Optimizer base class.  I'm not sure exactly
+    # what changed, but to use it the learning rate needs to be adjusted by a
+    # factor somewhere in the range of 1e+3 to 1e+4.  For now we just use the
+    # old optimizer from the legacy submodule.
+    optimizer = tf.keras.optimizers.legacy.RMSprop(learning_rate)
 
     pastiche_pyramid = [
         tf.Variable(img)
