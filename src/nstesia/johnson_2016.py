@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 from .gatys_2015 import ContentLoss, StyleLoss
 
@@ -167,7 +166,9 @@ class ConvolutionalBlock(tf.keras.layers.Layer):
         elif normalization == 'batch':
             self.norm = tf.keras.layers.BatchNormalization(name='norm')
         elif normalization == 'instance':
-            self.norm = tfa.layers.InstanceNormalization(name='norm')
+            self.norm = tf.keras.layers.GroupNormalization(
+                groups=-1, name='norm'
+            )
         else:
             raise ValueError('Unknown type of normalization layer.')
 
@@ -242,8 +243,12 @@ class ResidualBlock(tf.keras.layers.Layer):
             self.norm1 = tf.keras.layers.BatchNormalization(name='norm1')
             self.norm2 = tf.keras.layers.BatchNormalization(name='norm2')
         elif normalization == 'instance':
-            self.norm1 = tfa.layers.InstanceNormalization(name='norm1')
-            self.norm2 = tfa.layers.InstanceNormalization(name='norm2')
+            self.norm1 = tf.keras.layers.GroupNormalization(
+                groups=-1, name='norm1'
+            )
+            self.norm2 = tf.keras.layers.GroupNormalization(
+                groups=-1, name='norm2'
+            )
         else:
             raise ValueError('Unknown type of normalization layer.')
 
